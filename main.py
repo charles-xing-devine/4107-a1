@@ -20,7 +20,6 @@ with open(custom_stopwords_file, 'r') as file:
     custom_stopwords = set(word.strip() for word in file)
 
 from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
 def preprocess_document(document):
@@ -28,20 +27,19 @@ def preprocess_document(document):
     tokens = word_tokenize(document)
 
     # Stopword removal
-    stop_words = set(stopwords.words('english'))
-    stop_words.update(custom_stopwords)  # Add custom stopwords
+    stop_words = set(custom_stopwords)
     tokens = [token for token in tokens if token.lower() not in stop_words]
 
     # Filtering: Remove punctuation and numbers
     tokens = [token for token in tokens if token.isalpha()]
 
-    # Stemming (Optional)
+    # Stemming (Optional) document & documentation -> document
     stemmer = PorterStemmer()
     tokens = [stemmer.stem(token) for token in tokens]
 
     return tokens
 
 # Example usage
-document_text = "This is a sample document with some custom stopwords and punctuation!"
+document_text = "This is a sample document with some custom stopwords and punctuation and zzcharles!"
 processed_tokens = preprocess_document(document_text)
 print(processed_tokens)
