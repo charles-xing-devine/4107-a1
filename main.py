@@ -1,5 +1,5 @@
 import os
-import csv
+import json
 import nltk
 import ssl
 from nltk.tokenize import word_tokenize
@@ -12,79 +12,58 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-nltk.download('punkt')
-
-# Specify the path to your custom stopwords file
 custom_stopwords_file = 'stopwords.txt'
+collection_folder = 'coll'
+output_json_file = 'tokens.json'
 
-# Load custom stopwords from the file
-with open(custom_stopwords_file, 'r') as file:
-    custom_stopwords = set(word.strip() for word in file)
+# Load custom stopwords
+with open(custom_stopwords_file, 'r') as f:
+    custom_stopwords = set(f.read().splitlines())
 
-def preprocess_document(document, docno):
-    # Tokenization
+# Initialize NLTK's PorterStemmer
+porter_stemmer = PorterStemmer()
+
+def preprocess_document(document):
     tokens = word_tokenize(document)
+    tokens = [token.lower() for token in tokens if token.isalpha()]
+    tokens = [token for token in tokens if token not in custom_stopwords]
+    tokens = [porter_stemmer.stem(token) for token in tokens]
+    return tokens
 
-    # Stopword removal
-    stop_words = set(custom_stopwords)
-    tokens = [token for token in tokens if token.lower() not in stop_words]
+def preprocess_documents(folder):
+    preprocessed_docs = {}
+    unique_tokens = set()  # Set to keep track of unique tokens
+    for filename in os.listdir(folder):
+        filepath = os.path.join(folder, filename)
+        if os.path.isfile(filepath):
+            with open(filepath, 'r', encoding='utf-8') as file:
+                document = file.read()
+            tokens = preprocess_document(document)
+            preprocessed_docs[filename] = tokens
+            unique_tokens.update(tokens)  # Update the set with tokens from this document
+    return preprocessed_docs, unique_tokens
 
-    # Filtering: Remove punctuation and numbers
-    tokens = [token for token in tokens if token.isalpha()]
-
-    # Stemming (Optional) document & documentation -> document
-    stemmer = PorterStemmer()
-    tokens = [stemmer.stem(token) for token in tokens]
-
-    return [(token, docno) for token in set(tokens)]  # Use set to remove duplicate tokens
-
-def process_collection(folder_path):
-    # Create a dictionary to store tokens, corresponding docnos, and count of appearances
+def index_tokens(preprocessed_docs):
     tokens_dict = {}
-
-    # Loop through each file in the folder
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-
-        # Check if it's a file
-        if os.path.isfile(file_path):
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                file_content = file.read()
-
-                # Extract text inside <TEXT> brackets
-                start_index = file_content.find('<TEXT>') + len('<TEXT>')
-                end_index = file_content.find('</TEXT>', start_index)
-                text_inside_text_tag = file_content[start_index:end_index]
-
-                # Extract all <DOCNO> values
-                docno_tags = file_content.split('<DOCNO>')[1:]
-                for docno_tag in docno_tags:
-                    docno_end_index = docno_tag.find('</DOCNO>')
-                    docno = docno_tag[:docno_end_index].strip()
-
-                    # Preprocess the document and add tokens to the dictionary
-                    tokens = preprocess_document(text_inside_text_tag, docno)
-                    for token, docno in tokens:
-                        if token not in tokens_dict:
-                            tokens_dict[token] = {'docnos': set(), 'count': 0}
-                        tokens_dict[token]['docnos'].add(docno)
-                        tokens_dict[token]['count'] += 1
-
+    for filename, tokens in preprocessed_docs.items():
+        for token in tokens:
+            if token not in tokens_dict:
+                tokens_dict[token] = {filename: 1}
+            else:
+                tokens_dict[token][filename] = tokens_dict[token].get(filename, 0) + 1
     return tokens_dict
 
-def export_to_csv(dictionary, output_file):
-    with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        header = ['Token', 'Count', 'DOCNO']
-        csv_writer.writerow(header)
+# Preprocess documents and get unique tokens
+preprocessed_docs, unique_tokens = preprocess_documents(collection_folder)
 
-        for token, info in dictionary.items():
-            count = info['count']
-            docnos = ', '.join(info['docnos'])
-            csv_writer.writerow([token, count, docnos])
+# Index tokens
+tokens_dict = index_tokens(preprocessed_docs)
 
-# Example usage
-collection_folder = 'coll'  # Change to the actual folder path
-output_csv_file = 'output_tokens_dict.csv'  # Change to the desired output file name
-output_tokens_dict = process_collection(collection_folder)
-export_to_csv(output_tokens_dict, output_csv_file)
+# Add total unique token count at the end
+tokens_dict["total_unique_tokens"] = len(unique_tokens)
+
+# Write the tokens dictionary to a JSON file
+with open(output_json_file, 'w', encoding='utf-8') as jsonfile:
+    json.dump(tokens_dict, jsonfile, indent=4)
+
+print(f"Preprocessing and indexing complete. Token document occurrences and total unique token count written to '{output_json_file}'.")
