@@ -1,11 +1,16 @@
 import os
 import json
 import nltk
+nltk.download('punkt')
+import time
+
 import ssl
 import re  # Import the 're' module for regular expressions
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 import xml.etree.ElementTree as ET
+
+start_time = time.time()
 
 try:
     _create_unverified_https_context = ssl._create_unverified_context
@@ -14,8 +19,8 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-custom_stopwords_file = 'stopwords.txt'
-collection_folder = 'collec'
+custom_stopwords_file = '4107-a1/stopwords.txt'
+collection_folder = '4107-a1/coll'
 output_json_file = 'tokens.json'
 
 # Load custom stopwords
@@ -66,21 +71,20 @@ def preprocess_documents(folder):
                 # Extract <DOCNO> tags using regex
                 doc_no_matches = re.findall(r'<DOCNO>(.*?)<\/DOCNO>', document_content, re.DOTALL)
                 for doc_no in doc_no_matches:
-                    # Find the text between <TEXT> tags that are after the current <DOCNO>
-                    text_matches = re.findall(r'<DOCNO>{}</DOCNO>\s*<TEXT>(.*?)<\/TEXT>'.format(doc_no), document_content, re.DOTALL)
-                    if text_matches:
-                        # Only consider the first match as there should only be one <TEXT> tag per <DOCNO>
-                        text = text_matches[0]
-                        tokens = preprocess_document(clean_xml_content(text))
-                        tokens = list(set(tokens))
-                        preprocessed_docs[doc_no] = tokens
-                        unique_tokens.update(tokens)  
+                    # Find all occurrences of <TEXT> tags after the current <DOCNO>
+                    text_matches = re.findall(r'<DOCNO>{}</DOCNO>(.*?)<\/TEXT>'.format(re.escape(doc_no)), document_content, re.DOTALL)
+                    tokens = []
+                    for text in text_matches:
+                        # Preprocess each text and update tokens list
+                        tokens.extend(preprocess_document(clean_xml_content(text)))
+                    tokens = list(tokens)  # Remove duplicates
+                    preprocessed_docs[doc_no] = tokens
+                    unique_tokens.update(tokens)
     return preprocessed_docs, unique_tokens
 
 def index_tokens(preprocessed_docs):
     tokens_dict = {}
     for doc_no, tokens in preprocessed_docs.items():
-        print(preprocessed_docs.items())
         for token in tokens:
             if token not in tokens_dict:
                 tokens_dict[token] = {doc_no: 1}
@@ -126,3 +130,10 @@ tokens_dict["total_unique_tokens"] = len(unique_tokens)
 # Write the tokens dictionary to a JSON file
 with open(output_json_file, 'w', encoding='utf-8') as jsonfile:
     json.dump(tokens_dict, jsonfile, indent=4)
+
+# Record the end time after writing the JSON file
+end_time = time.time()
+
+# Calculate the elapsed time
+elapsed_time = end_time - start_time
+print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
