@@ -1,3 +1,4 @@
+import math
 import os
 import json
 import nltk
@@ -20,7 +21,7 @@ else:
     ssl._create_default_https_context = _create_unverified_https_context
 
 custom_stopwords_file = '4107-a1/stopwords.txt'
-collection_folder = '4107-a1/coll'
+collection_folder = '4107-a1/collec'
 output_json_file = 'tokens.json'
 
 # Load custom stopwords
@@ -89,32 +90,55 @@ def index_tokens(preprocessed_docs):
             if token not in tokens_dict:
                 tokens_dict[token] = {doc_no: 1}
             else:
-                tokens_dict[token][doc_no] = tokens_dict[token].get(doc_no, 0) + 1
+                if doc_no in tokens_dict[token]:
+                    tokens_dict[token][doc_no] += 1
+                else:
+                    tokens_dict[token][doc_no] = 1
+    for token, doc_counts in tokens_dict.items():
+        if token == "text":
+            for doc_no, count in list(doc_counts.items()):
+                if count == 1:
+                    del tokens_dict[token][doc_no]  # Remove the token count if it is 1
+                else:
+                    tokens_dict[token][doc_no] -= 1  # Decrement the count by 1 if more than 1
+    tokens_dict.pop("", None)
     return tokens_dict
 
 def idf_calculation(query): 
-
     arr = [] 
-
-    tmp = 0; 
-
     for token in query: 
         if token in tokens_dict: 
-            value = tokens_dict[token]
-            arr.append(value) 
-            len(value)
-            for i in range(len(value)):
-                tmp += len(value)
-
-                ## {"AP8080"; 1}
-
+            arr.append(math.log2(number_of_docs/len(tokens_dict[token]))) 
+            print(arr)
     return arr
 
-def tf_calculation(): 
-    return 0
+def tf_calculation(query): 
+    arr = []
+    tmp = []
+    res = []
+    fin = []
+    for token in query: 
+        if token in tokens_dict:
+            arr = list(tokens_dict[token].keys())
+            for i in range(len(arr)):
+                if arr[i] not in tmp:
+                    tmp.append(arr[i])
+                    fin.append(arr[i])
+                    for j in query:
+                        if j in tokens_dict:
+                            fin.append(tokens_dict[j].get(arr[i]))
+                    res.append(fin)
+                    fin = []
+
+                print(res)
+    print(max(res[0][1:]))
+    return arr
 
 def tf_idf_score(idf, tf): 
     return tf_calculation(tf) * idf_calculation(idf)
+
+def cosine_calculator(): 
+    return 0
     
 ##################################
 
@@ -137,3 +161,5 @@ end_time = time.time()
 # Calculate the elapsed time
 elapsed_time = end_time - start_time
 print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
+
+tf_calculation(preprocess_document("office vietnamese govern"))
