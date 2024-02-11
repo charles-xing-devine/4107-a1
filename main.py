@@ -21,10 +21,10 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-custom_stopwords_file = '4107-a1/stopwords.txt'
-collection_folder = '4107-a1/coll'
+custom_stopwords_file = 'stopwords.txt'
+collection_folder = 'coll'
 output_tokens_json_file = 'tokens.json'
-file_path = '4107-a1/test_queries.txt'
+file_path = 'test_queries.txt'
 
 # Load custom stopwords
 with open(custom_stopwords_file, 'r') as f:
@@ -231,15 +231,48 @@ def getQueryTitle(runName):
         cosine = cosine_calculator(preprocess_document(query))
         count = 1
         for j in cosine:
-            data = ""
-            data = str(qnum) + " Q0 " + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
-            count += 1
-            result += data
+            if count <= 1000:
+                data = ""
+                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+                count += 1
+                result += data
+            else: 
+                break
         qnum += 1    
     with open('Result.txt', 'w') as file: 
         file.write(result); 
 
-    
+def getQueryTitleDesc(runName): 
+    result = ""
+    qnum = 1
+    for key, value in indexed_tokens.items(): 
+        query = ""
+        title_array = []
+        title_count = []
+        title = value.get('title', {})
+        for keyt, valuet in title.items(): 
+            title_array.append(keyt)
+            title_count.append(valuet)
+        desc = value.get('desc', {})
+        for keyd, valued in desc.items():
+            title_array.append(keyd) 
+            title_count.append(valued)
+        for i in range(len(title_array)):
+            for j in range(title_count[i]):
+                query += title_array[i] + " "  
+        cosine = cosine_calculator(preprocess_document(query))
+        count = 1
+        for j in cosine:
+            if count <= 1000:
+                data = ""
+                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+                count += 1
+                result += data
+            else: 
+                break
+        qnum += 1    
+    with open('Result.txt', 'w') as file: 
+        file.write(result); 
 ##################################
 # Index the tokens
 indexed_tokens = index_topic_tokens(file_path)
@@ -264,7 +297,7 @@ with open(output_tokens_json_file, 'w', encoding='utf-8') as jsonfile:
 end_time = time.time()
 
 
-getQueryTitle("Run 1")
+getQueryTitleDesc("Run 1")
 # Calculate the elapsed time
 elapsed_time = end_time - start_time
 print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
