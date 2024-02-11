@@ -195,8 +195,6 @@ def tf_idf_score(query):
     for i in range(len(tf)):
         tempList = [tf[i][0]]
         for j in range(1,len(tf[i])):
-            print(idf)
-            print(tf)
             tempList.append(tf[i][j]*idf[j-1])
         tf_idf.append(tempList)
     return tf_idf
@@ -218,6 +216,7 @@ def cosine_calculator(query):
 
 def getQueryTitle(runName):
     result = ""
+    qnum = 1
     for key, value in indexed_tokens.items(): 
         query = ""
         title_array = []
@@ -228,16 +227,15 @@ def getQueryTitle(runName):
             title_count.append(value); 
         for i in range(len(title_array)):
             for j in range(title_count[i]):
-                query += title_array[i] + " " 
-        print(query)   
+                query += title_array[i] + " "  
         cosine = cosine_calculator(preprocess_document(query))
         count = 1
         for j in cosine:
             data = ""
-            data = key + " Q0 " + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+            data = qnum + " Q0 " + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
             count += 1
             result += data
-            
+        qnum += 1    
     with open('Result.txt', 'w') as file: 
         file.write(result); 
 
@@ -265,7 +263,9 @@ with open(output_tokens_json_file, 'w', encoding='utf-8') as jsonfile:
 # Record the end time after writing the JSON file
 end_time = time.time()
 
+
+getQueryTitle("Run 1")
 # Calculate the elapsed time
 elapsed_time = end_time - start_time
 print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
-getQueryTitle("Run 1")
+
