@@ -232,7 +232,7 @@ def getQueryTitle(runName):
         count = 1
         for j in cosine:
             data = ""
-            data = qnum + " Q0 " + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+            data = str(qnum) + " Q0 " + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
             count += 1
             result += data
         qnum += 1    
