@@ -1,0 +1,34 @@
+Last login: Sun Feb 11 19:58:05 on ttys119
+charlesdevine@Charless-MBP ~ % cd Documents
+charlesdevine@Charless-MBP Documents % trec_eval qrels1-50ap.txt ResultTitle.txt
+runid                     all    run_4
+num_q                     all    50
+num_ret                   all    47728
+num_rel                   all    2099
+num_rel_ret               all    1090
+map                       all    0.1120
+gm_map                    all    0.0219
+Rprec                     all    0.1255
+bpref                     all    0.2309
+recip_rank                all    0.2374
+iprec_at_recall_0.00      all    0.2870
+iprec_at_recall_0.10      all    0.2312
+iprec_at_recall_0.20      all    0.1983
+iprec_at_recall_0.30      all    0.1637
+iprec_at_recall_0.40      all    0.1493
+iprec_at_recall_0.50      all    0.1247
+iprec_at_recall_0.60      all    0.1123
+iprec_at_recall_0.70      all    0.0959
+iprec_at_recall_0.80      all    0.0737
+iprec_at_recall_0.90      all    0.0298
+iprec_at_recall_1.00      all    0.0051
+P_5                       all    0.1400
+P_10                      all    0.1440
+P_15                      all    0.1320
+P_20                      all    0.1260
+P_30                      all    0.1220
+P_100                     all    0.0824
+P_200                     all    0.0625
+P_500                     all    0.0343
+P_1000                    all    0.0218
+charlesdevine@Charless-MBP Documents % 
