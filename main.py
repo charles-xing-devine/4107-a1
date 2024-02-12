@@ -1,15 +1,13 @@
 import math
 import os
-import json
 import nltk
 nltk.download('punkt')
 import time
 import numpy as np
 import ssl
-import re  # Import the 're' module for regular expressions
+import re
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
-import xml.etree.ElementTree as ET
 from numpy.linalg import norm
 
 start_time = time.time()
@@ -21,10 +19,10 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-custom_stopwords_file = 'stopwords.txt'
-collection_folder = 'coll'
+custom_stopwords_file = '4107-a1/stopwords.txt'
+collection_folder = '4107-a1/coll'
 output_tokens_json_file = 'tokens.json'
-file_path = 'test_queries.txt'
+file_path = '4107-a1/test_queries.txt'
 
 # Load custom stopwords
 with open(custom_stopwords_file, 'r') as f:
@@ -70,7 +68,6 @@ def index_topic_tokens(file_path):
             }        
     return indexed_tokens
 
-# Define a function to clean XML content using regex
 def clean_xml_content(xml_content):
     # Define a regular expression pattern to match lines not encapsulated by <DOCNO> and <TEXT> tags
     pattern = r'<(?!DOCNO|TEXT)[^>]*>.*?</[^>]*>\n?'
@@ -138,15 +135,16 @@ def index_tokens(preprocessed_docs):
                     tokens_dict[token][doc_no] -= 1  # Decrement the count by 1 if more than 1
     tokens_dict.pop("", None)
     return tokens_dict
-def cleanQuery(query):
+
+def clean_query(query):
     seen = set()
     unique_query = [x for x in query if not (x in seen or seen.add(x))] #returns a list of all words in a query without duplicates in the same order
-    queryCounts = [query.count(word) for word in unique_query] #returns a list with the count of all words in the query in the same order 
-    return unique_query, queryCounts
+    query_counts = [query.count(word) for word in unique_query] #returns a list with the count of all words in the query in the same order 
+    return unique_query, query_counts
 
 def idf_calculation(query): 
     arr = [] 
-    query, count = cleanQuery(query) #get the clean query
+    query, count = clean_query(query) #get the clean query
     for token in query: #for all words in the query list calculatat the idf by getting the total number of documents and dividing by how many documents have that word 
         if token in tokens_dict: 
             arr.append(math.log2(number_of_docs/len(tokens_dict[token])))        
@@ -157,13 +155,13 @@ def tf_calculation(query):
     tmp = []
     res = []
     fin = []
-    fullQuery = query #hold the original query
-    query, queryCounts = cleanQuery(fullQuery) #get the clean query and the counts
+    full_query = query #hold the original query
+    query, query_counts = clean_query(full_query) #get the clean query and the counts
     #add the query tf at the begining of the matrix
     tmp.append("query")
-    for i in range(len(queryCounts)):
+    for i in range(len(query_counts)):
         if query[i] in tokens_dict:
-            tmp.append(queryCounts[i])
+            tmp.append(query_counts[i])
     res.append(tmp)
     tmp = [] #store the documents that have been processed 
     # Calculate tf for all documents that have at least 1 word in the query
@@ -195,16 +193,16 @@ def tf_idf_score(query):
     tf_idf = []
     #for all tf scores for each document multiply the result with the idf for that word
     for i in range(len(tf)):
-        tempList = [tf[i][0]]
+        temp_list = [tf[i][0]]
         for j in range(1,len(tf[i])):
-            tempList.append(tf[i][j]*idf[j-1])
-        tf_idf.append(tempList)
+            temp_list.append(tf[i][j]*idf[j-1])
+        tf_idf.append(temp_list)
     return tf_idf
 
 def cosine_calculator(query): 
     tf_idf = tf_idf_score(query) #Calculate the tf_idf for the query and documents 
     qtf_idf = tf_idf[0] #pull the query tf_idf from the list 
-    cosineValue = []
+    cosine_value = []
     #for all documents add the document title to the list then add the result of the cosine similarity calculation
     for i in range(1,len(tf_idf)):
         val = []
@@ -214,11 +212,11 @@ def cosine_calculator(query):
         dotproduct = np.dot(q,doc)/(norm(q)*norm(doc))
         dotproduct = round(dotproduct,4) #round to the 4th decimal place 
         val.append(dotproduct)
-        cosineValue.append(val)
-    cosineValue = sorted(cosineValue, key = lambda x: x[1], reverse=True) #sort the list by descending order to get the highes values first
-    return cosineValue
+        cosine_value.append(val)
+    cosine_value = sorted(cosine_value, key = lambda x: x[1], reverse=True) #sort the list by descending order to get the highes values first
+    return cosine_value
 
-def getQueryTitle(runName):
+def get_query_title(run_name):
     result = "" #Result of what to output
     qnum = 1
     #for each key in idexed_tokens will run 50 times 
@@ -239,7 +237,7 @@ def getQueryTitle(runName):
         for j in cosine:
             if count <= 1000: #get the top 1000 results for each query and add it to the string result
                 data = ""
-                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + run_name + "\n"    
                 count += 1
                 result += data
             else: 
@@ -248,7 +246,7 @@ def getQueryTitle(runName):
     with open('Result.txt', 'w') as file: #write the result to the text file Result.txt
         file.write(result); 
 
-def getQueryTitleDesc(runName): 
+def get_query_title_desc(run_name): 
     result = "" #Result of what to output
     qnum = 1
     #for each key in idexed_tokens will run 50 times 
@@ -274,7 +272,7 @@ def getQueryTitleDesc(runName):
         for j in cosine:
             if count <= 1000: #get the top 1000 results for each query and add it to the string result
                 data = ""
-                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + runName + "\n"    
+                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + run_name + "\n"    
                 count += 1
                 result += data
             else: 
@@ -282,13 +280,11 @@ def getQueryTitleDesc(runName):
         qnum += 1    
     with open('Result.txt', 'w') as file:  #write the result to the text file Result.txt
         file.write(result); 
+
 ##################################
 # Index the tokens
 indexed_tokens = index_topic_tokens(file_path)
-# Save to JSON file
-output_json_file = 'indexed_topics.json'
-with open(output_json_file, 'w', encoding='utf-8') as jsonfile:
-    json.dump(indexed_tokens, jsonfile, indent=4)
+
 # Call preprocess_documents to preprocess the documents
 preprocessed_docs, unique_tokens = preprocess_documents(collection_folder)
 
@@ -298,20 +294,17 @@ tokens_dict = index_tokens(preprocessed_docs)
 # Add total unique token count at the end
 tokens_dict["total_unique_tokens"] = len(unique_tokens)
 
-# Write the tokens dictionary to a JSON file
-with open(output_tokens_json_file, 'w', encoding='utf-8') as jsonfile:
-    json.dump(tokens_dict, jsonfile, indent=4)
-
 # Record the end time after writing the JSON file
 end_time = time.time()
 
 #Calculate the result over the query title
-getQueryTitle("Run_title")
+#get_query_title("run_4")
 
 #Calculate the result over the query title and description
-#getQueryTitleDesc("Run_title_description")
+get_query_title_desc("Run_title_description")
 
 # Calculate the elapsed time
 elapsed_time = end_time - start_time
+
 print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
 
