@@ -9,6 +9,10 @@ import re
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from numpy.linalg import norm
+import json
+
+from sentence_transformers import SentenceTransformer, util
+import torch
 
 start_time = time.time()
 
@@ -20,7 +24,7 @@ else:
     ssl._create_default_https_context = _create_unverified_https_context
 
 custom_stopwords_file = '4107-a1/stopwords.txt'
-collection_folder = '4107-a1/coll'
+collection_folder = '4107-a1/collection'
 output_tokens_json_file = 'tokens.json'
 file_path = '4107-a1/test_queries.txt'
 
@@ -32,6 +36,8 @@ with open(custom_stopwords_file, 'r') as f:
 porter_stemmer = PorterStemmer()
 
 number_of_docs = 79923
+
+text_dict = {}
 
 ##################################
 def preprocess_text(text):
@@ -93,6 +99,28 @@ def preprocess_query(query):
     
     return tokens
 
+def extract_text(content):
+    # Join the list into a single string if it's provided as a list
+    if isinstance(content, list):
+        content = ' '.join(content)
+    
+    # Regular expression to find content following the <TEXT> tag
+    pattern = r'<TEXT>(.*)'
+    
+    # Search for the pattern and extract the content
+    match = re.search(pattern, content, re.DOTALL)
+    
+    # If a match is found, process the content
+    if match:
+        extracted_content = match.group(1).strip()  # .strip() removes leading and trailing whitespace
+        
+        # Remove \n and \t from the extracted content
+        cleaned_content = re.sub(r'[\n\t]+', ' ', extracted_content)
+        
+        return cleaned_content
+    else:
+        return ""
+
 def preprocess_documents(folder):
     preprocessed_docs = {}
     unique_tokens = set()  # Set to keep track of unique tokens
@@ -107,6 +135,7 @@ def preprocess_documents(folder):
                     # Find all occurrences of <TEXT> tags after the current <DOCNO>
                     text_matches = re.findall(r'<DOCNO>{}</DOCNO>(.*?)<\/TEXT>'.format(re.escape(doc_no)), document_content, re.DOTALL)
                     tokens = []
+                    text_dict[doc_no] = extract_text(text_matches)
                     for text in text_matches:
                         # Preprocess each text and update tokens list
                         tokens.extend(preprocess_document(clean_xml_content(text)))
@@ -142,144 +171,8 @@ def clean_query(query):
     query_counts = [query.count(word) for word in unique_query] #returns a list with the count of all words in the query in the same order 
     return unique_query, query_counts
 
-def idf_calculation(query): 
-    arr = [] 
-    query, count = clean_query(query) #get the clean query
-    for token in query: #for all words in the query list calculatat the idf by getting the total number of documents and dividing by how many documents have that word 
-        if token in tokens_dict: 
-            arr.append(math.log2(number_of_docs/len(tokens_dict[token])))        
-    return arr
-
-def tf_calculation(query): 
-    arr = []
-    tmp = []
-    res = []
-    fin = []
-    full_query = query #hold the original query
-    query, query_counts = clean_query(full_query) #get the clean query and the counts
-    #add the query tf at the begining of the matrix
-    tmp.append("query")
-    for i in range(len(query_counts)):
-        if query[i] in tokens_dict:
-            tmp.append(query_counts[i])
-    res.append(tmp)
-    tmp = [] #store the documents that have been processed 
-    # Calculate tf for all documents that have at least 1 word in the query
-    for token in query: 
-        if token in tokens_dict:
-            arr = list(tokens_dict[token].keys()) 
-            for i in range(len(arr)): #for loop for all documents that countain the word token
-                if arr[i] not in tmp: #compare with previoudly processed document 
-                    tmp.append(arr[i])
-                    fin.append(arr[i])
-                    for j in query: #for all words in query check if the document has that word if it does add the count to the list 
-                        if j in tokens_dict:
-                            if tokens_dict[j].get(arr[i]) != None:
-                                fin.append(tokens_dict[j].get(arr[i]))
-                            else: 
-                                fin.append(int(0))
-                    res.append(fin)
-                    fin = []
-    #for the matrix calculate the tf for all words in each documents       
-    for i in range(len(res)):
-        maximum = max(res[i][1:])
-        for j in range(1,len(res[i])):
-            res[i][j] = res[i][j]/maximum
-    return res
-
-def tf_idf_score(query): 
-    tf = tf_calculation(query) #get the tf scores for the documents 
-    idf = idf_calculation(query) #get the idf scores for the words
-    tf_idf = []
-    #for all tf scores for each document multiply the result with the idf for that word
-    for i in range(len(tf)):
-        temp_list = [tf[i][0]]
-        for j in range(1,len(tf[i])):
-            temp_list.append(tf[i][j]*idf[j-1])
-        tf_idf.append(temp_list)
-    return tf_idf
-
-def cosine_calculator(query): 
-    tf_idf = tf_idf_score(query) #Calculate the tf_idf for the query and documents 
-    qtf_idf = tf_idf[0] #pull the query tf_idf from the list 
-    cosine_value = []
-    #for all documents add the document title to the list then add the result of the cosine similarity calculation
-    for i in range(1,len(tf_idf)):
-        val = []
-        val.append(tf_idf[i][0])
-        q = np.array(qtf_idf[1:])
-        doc = np.array(tf_idf[i][1:])
-        dotproduct = np.dot(q,doc)/(norm(q)*norm(doc))
-        dotproduct = round(dotproduct,4) #round to the 4th decimal place 
-        val.append(dotproduct)
-        cosine_value.append(val)
-    cosine_value = sorted(cosine_value, key = lambda x: x[1], reverse=True) #sort the list by descending order to get the highes values first
-    return cosine_value
-
-def get_query_title(run_name):
-    result = "" #Result of what to output
-    qnum = 1
-    #for each key in idexed_tokens will run 50 times 
-    for key, value in indexed_tokens.items(): 
-        query = ""
-        title_array = []
-        title_count = []
-        title = value.get('title', {})
-        #for each title word add it to the query for the number of times that it was in the test_query document for that run
-        for key, value in title.items(): 
-            title_array.append(key); 
-            title_count.append(value); 
-        for i in range(len(title_array)):
-            for j in range(title_count[i]):
-                query += title_array[i] + " "  
-        cosine = cosine_calculator(preprocess_document(query)) #run the cosine calculator on the query and get the matrix back for the result
-        count = 1
-        for j in cosine:
-            if count <= 1000: #get the top 1000 results for each query and add it to the string result
-                data = ""
-                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + run_name + "\n"    
-                count += 1
-                result += data
-            else: 
-                break
-        qnum += 1    
-    with open('Result.txt', 'w') as file: #write the result to the text file Result.txt
-        file.write(result); 
-
-def get_query_title_desc(run_name): 
-    result = "" #Result of what to output
-    qnum = 1
-    #for each key in idexed_tokens will run 50 times 
-    for key, value in indexed_tokens.items(): 
-        query = ""
-        title_array = []
-        title_count = []
-        title = value.get('title', {})
-        #for each title word add it to the query for the number of times that it was in the test_query document for that run
-        for keyt, valuet in title.items(): 
-            title_array.append(keyt)
-            title_count.append(valuet)
-        desc = value.get('desc', {})
-        #for each description word add it to the query for the number of times that it was in the test_query document for that run
-        for keyd, valued in desc.items():
-            title_array.append(keyd) 
-            title_count.append(valued)
-        for i in range(len(title_array)):
-            for j in range(title_count[i]):
-                query += title_array[i] + " "  
-        cosine = cosine_calculator(preprocess_document(query)) #run the cosine calculator on the query and get the matrix back for the result
-        count = 1
-        for j in cosine:
-            if count <= 1000: #get the top 1000 results for each query and add it to the string result
-                data = ""
-                data = str(qnum) + " Q0" + j[0]  + str(count) + " " + str(j[1]) + " " + run_name + "\n"    
-                count += 1
-                result += data
-            else: 
-                break
-        qnum += 1    
-    with open('Result.txt', 'w') as file:  #write the result to the text file Result.txt
-        file.write(result); 
+def neural_retrieval1(): 
+    return 0; 
 
 ##################################
 # Index the tokens
@@ -297,11 +190,22 @@ tokens_dict["total_unique_tokens"] = len(unique_tokens)
 # Record the end time after writing the JSON file
 end_time = time.time()
 
+documents = list(text_dict.values())  # Convert dict_values to a list
+query = "Vietnam arsonist"
+model = SentenceTransformer('all-MiniLM-L6-v2')
+doc_embeddings = model.encode(documents, convert_to_tensor=True)
+query_embedding = model.encode(query, convert_to_tensor=True)
+cosine_scores = util.pytorch_cos_sim(query_embedding, doc_embeddings)
+most_similar_docs_indices = cosine_scores.argsort(descending=True)
+
+for index in most_similar_docs_indices[0][:5]:  # Adjust the slice for the number of top documents you want
+    print(f"Document index: {index.item()}, Similarity Score: {cosine_scores[0, index].item()}")
+
 #Calculate the result over the query title
 #get_query_title("run_4")
 
 #Calculate the result over the query title and description
-get_query_title_desc("Run_title_description")
+#get_query_title_desc("Run_title_description")
 
 # Calculate the elapsed time
 elapsed_time = end_time - start_time
