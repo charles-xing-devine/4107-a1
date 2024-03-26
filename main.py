@@ -171,8 +171,34 @@ def clean_query(query):
     query_counts = [query.count(word) for word in unique_query] #returns a list with the count of all words in the query in the same order 
     return unique_query, query_counts
 
-def neural_retrieval1(): 
-    return 0; 
+def nlp_minilm_neural_retrieval(text_dict, query): 
+    documents = list(text_dict)  # Convert dict_values to a list
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    doc_embeddings = model.encode(documents, convert_to_tensor=True)
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    cosine_scores = util.pytorch_cos_sim(query_embedding, doc_embeddings)
+    most_similar_docs_indices = cosine_scores.argsort(descending=True) 
+
+    for index in most_similar_docs_indices[0][:5]:  # Adjust the slice for the number of top documents you want
+        print(f"Document index: {index.item()}, Similarity Score: {cosine_scores[0, index].item()}")
+
+def nlp_bert_neural_retrieval(text_dict, query):
+        # Convert dict_values to a list of documents
+    documents = list(text_dict)
+    # Initialize the BERT model for generating embeddings
+    model = SentenceTransformer('bert-base-nli-mean-tokens')
+    # Encode the documents to get their embeddings
+    doc_embeddings = model.encode(documents, convert_to_tensor=True)
+    # Encode the query to get its embedding
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    # Compute cosine similarity between the query embedding and document embeddings
+    cosine_scores = util.pytorch_cos_sim(query_embedding, doc_embeddings)
+    # Get indices of documents in descending order of similarity scores
+    most_similar_docs_indices = cosine_scores.argsort(descending=True)
+
+    # Print the top 5 most similar documents and their similarity scores
+    for index in most_similar_docs_indices[0][:5]:  # Adjust the slice for the number of top documents you want
+        print(f"Document index: {index.item()}, Similarity Score: {cosine_scores[0, index].item()}")
 
 ##################################
 # Index the tokens
@@ -181,34 +207,9 @@ indexed_tokens = index_topic_tokens(file_path)
 # Call preprocess_documents to preprocess the documents
 preprocessed_docs, unique_tokens = preprocess_documents(collection_folder)
 
-# Call index_tokens to index the tokens
-tokens_dict = index_tokens(preprocessed_docs)
-
-# Add total unique token count at the end
-tokens_dict["total_unique_tokens"] = len(unique_tokens)
-
-# Record the end time after writing the JSON file
-end_time = time.time()
-
-documents = list(text_dict.values())  # Convert dict_values to a list
-query = "Vietnam arsonist"
-model = SentenceTransformer('all-MiniLM-L6-v2')
-doc_embeddings = model.encode(documents, convert_to_tensor=True)
-query_embedding = model.encode(query, convert_to_tensor=True)
-cosine_scores = util.pytorch_cos_sim(query_embedding, doc_embeddings)
-most_similar_docs_indices = cosine_scores.argsort(descending=True)
-
-for index in most_similar_docs_indices[0][:5]:  # Adjust the slice for the number of top documents you want
-    print(f"Document index: {index.item()}, Similarity Score: {cosine_scores[0, index].item()}")
-
-#Calculate the result over the query title
-#get_query_title("run_4")
-
-#Calculate the result over the query title and description
-#get_query_title_desc("Run_title_description")
-
-# Calculate the elapsed time
-elapsed_time = end_time - start_time
-
-print(f"Time taken to load and process JSON file: {elapsed_time} seconds")
+# 1st neural retrieval
+print("minilm:")
+nlp_minilm_neural_retrieval(text_dict.values(),"The document will provide information on jail and prison overcrowding and how inmates are forced to cope with those conditions; or it will reveal plans to relieve the overcrowded condition.")
+print("bert:")
+nlp_bert_neural_retrieval(text_dict.values(),"The document will provide information on jail and prison overcrowding and how inmates are forced to cope with those conditions; or it will reveal plans to relieve the overcrowded condition.")
 
