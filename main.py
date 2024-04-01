@@ -24,7 +24,7 @@ else:
     ssl._create_default_https_context = _create_unverified_https_context
 
 custom_stopwords_file = '4107-a1/stopwords.txt'
-collection_folder = '4107-a1/collection'
+collection_folder = '4107-a1/coll'
 output_tokens_json_file = 'tokens.json'
 file_path = '4107-a1/test_queries.txt'
 
@@ -34,9 +34,7 @@ with open(custom_stopwords_file, 'r') as f:
 
 # Initialize NLTK's PorterStemmer
 porter_stemmer = PorterStemmer()
-
 number_of_docs = 79923
-
 text_dict = {}
 
 ##################################
@@ -173,7 +171,7 @@ def clean_query(query):
 
 def nlp_minilm_neural_retrieval(text_dict, query): 
     documents = list(text_dict)  # Convert dict_values to a list
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer('all-mpnet-base-v2')
     doc_embeddings = model.encode(documents, convert_to_tensor=True)
     query_embedding = model.encode(query, convert_to_tensor=True)
     cosine_scores = util.pytorch_cos_sim(query_embedding, doc_embeddings)
@@ -186,7 +184,7 @@ def nlp_bert_neural_retrieval(text_dict, query):
         # Convert dict_values to a list of documents
     documents = list(text_dict)
     # Initialize the BERT model for generating embeddings
-    model = SentenceTransformer('bert-base-nli-mean-tokens')
+    model = SentenceTransformer('multi-qa-distilbert-cos-v1')
     # Encode the documents to get their embeddings
     doc_embeddings = model.encode(documents, convert_to_tensor=True)
     # Encode the query to get its embedding
@@ -208,8 +206,9 @@ indexed_tokens = index_topic_tokens(file_path)
 preprocessed_docs, unique_tokens = preprocess_documents(collection_folder)
 
 # 1st neural retrieval
-print("minilm:")
-nlp_minilm_neural_retrieval(text_dict.values(),"The document will provide information on jail and prison overcrowding and how inmates are forced to cope with those conditions; or it will reveal plans to relieve the overcrowded condition.")
+#print("minilm:")
+#nlp_minilm_neural_retrieval(text_dict.values(),"The document will provide information on jail and prison overcrowding and how inmates are forced to cope with those conditions; or it will reveal plans to relieve the overcrowded condition.")
 print("bert:")
 nlp_bert_neural_retrieval(text_dict.values(),"The document will provide information on jail and prison overcrowding and how inmates are forced to cope with those conditions; or it will reveal plans to relieve the overcrowded condition.")
 
+ 
